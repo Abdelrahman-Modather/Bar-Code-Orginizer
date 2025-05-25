@@ -1,6 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const PDFDocument = require('pdfkit');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs').promises;
 const path = require('path');
@@ -10,8 +9,6 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 const DB_FILE = path.join(__dirname, 'barcodes.json');
-// Path to Arabic font (place Amiri-Regular.ttf in a fonts directory)
-const ARABIC_FONT_PATH = path.join(__dirname, 'fonts', 'Amiri-Regular.ttf');
 
 // Enable CORS for all origins (adjust for production)
 app.use(cors({
@@ -88,7 +85,7 @@ app.post('/api/barcodes', async (req, res) => {
     }
 });
 
-// Endpoint to download PDF
+// Endpoint to display barcode data in HTML
 app.get('/download/:folderId', async (req, res) => {
     try {
         const { folderId } = req.params;
@@ -98,71 +95,49 @@ app.get('/download/:folderId', async (req, res) => {
             return res.status(404).send('Barcode data not found');
         }
 
-        const doc = new PDFDocument({ autoFirstPage: false });
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename=barcode-folder-${folderId}.pdf`);
-
-        doc.pipe(res);
-
-        // Add a new page with RTL layout
-        doc.addPage({
-            layout: 'portrait',
-            margin: 20
-        });
-
-        // Register Arabic font
-        if (!fs.existsSync(ARABIC_FONT_PATH)) {
-            throw new Error('Arabic font file not found');
-        }
-        doc.registerFont('Amiri', ARABIC_FONT_PATH);
-
-        // Set font and size for header
-        doc.font('Amiri').fontSize(16);
-        doc.text('تقرير مجلد الباركود', 190, 20, { align: 'right' });
-
-        // Add metadata
-        doc.fontSize(12);
         const currentDate = new Date(data.timestamp);
-        doc.text(`تاريخ الإنشاء: ${currentDate.toLocaleDateString('ar-SA')}`, 190, 35, { align: 'right' });
-        doc.text(`الوقت: ${currentDate.toLocaleTimeString('ar-SA')}`, 190, 45, { align: 'right' });
-        doc.text(`إجمالي الباركودات: ${data.barcodes.length}`, 190, 55, { align: 'right' });
+        const htmlContent = `
+            <!DOCTYPE html>
+            <html lang="ar" dir="rtl">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>تقرير مجلد الباركود</title>
+                <style>
+                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f9f9f9; padding: 20px; direction: rtl; }
+                    .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+                    h1 { color: #2d3748; text-align: center; margin-bottom: 20px; }
+                    .metadata { margin-bottom: 20px; color: #4a5568; }
+                    .barcode-list { list-style: none; padding: 0; }
+                    .barcode-item { padding: 10px; border-bottom: 1px solid #e2e8f0; }
+                    .barcode-text { font-family: 'Courier New', monospace; color: #2d3748; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>تقرير مجلد الباركود</h1>
+                    <div class="metadata">
+                        <p>تاريخ الإنشاء: ${currentDate.toLocaleDateString('ar-SA')}</p>
+                        <p>الوقت: ${currentDate.toLocaleTimeString('ar-SA')}</p>
+                        <p>إجمالي الباركودات: ${data.barcodes.length}</p>
+                    </div>
+                    <ul class="barcode-list">
+                        ${data.barcodes.map((barcode, index) => `
+                            <li class="barcode-item">
+                                <span class="barcode-text">${index + 1}. ${barcode}</span>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            </body>
+            </html>
+        `;
 
-        // Add line separator
-        doc.moveTo(20, 65).lineTo(190, 65).stroke();
-
-        // Add barcode list
-        doc.fontSize(11);
-        doc.text('قائمة الباركودات:', 190, 75, { align: 'right' });
-
-        doc.fontSize(10);
-        let yPosition = 85;
-
-        data.barcodes.forEach((barcode, index) => {
-            if (yPosition > 270) {
-                doc.addPage();
-                yPosition = 20;
-            }
-            const paddedIndex = String(index + 1).padStart(2, '0');
-            doc.font('Amiri');
-            doc.text(`${paddedIndex}.`, 190, yPosition, { align: 'right', continued: true });
-            doc.font('Courier');
-            doc.text(` ${barcode}`, { align: 'right' });
-            yPosition += 10;
-        });
-
-        // Add footer
-        const pageCount = doc.bufferedPageRange().count;
-        for (let i = 0; i < pageCount; i++) {
-            doc.switchToPage(i);
-            doc.font('Amiri').fontSize(8);
-            doc.text(`الصفحة ${i + 1} من ${pageCount}`, 190, 285, { align: 'right' });
-            doc.text('تم إنشاؤه بواسطة مدير الباركود', 20, 285, { align: 'left' });
-        }
-
-        doc.end();
+        res.setHeader('Content-Type', 'text/html');
+        res.send(htmlContent);
     } catch (error) {
-        console.error('Error generating PDF:', error);
-        res.status(500).send(`Error generating PDF: ${error.message}`);
+        console.error('Error generating HTML:', error);
+        res.status(500).send(`Error generating HTML: ${error.message}`);
     }
 });
 

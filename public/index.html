@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>مدير الباركود وإنشاء رمز QR</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -162,16 +161,6 @@
             box-shadow: 0 8px 20px rgba(72, 187, 120, 0.3);
         }
 
-        .btn-info {
-            background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
-            color: white;
-        }
-
-        .btn-info:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(66, 153, 225, 0.3);
-        }
-
         .barcode-list {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
@@ -311,7 +300,7 @@
     <div class="container">
         <div class="header">
             <h1>📁 مدير الباركود</h1>
-            <p>أدخل 30 باركود لإنشاء رمز QR لتحميل ملف PDF</p>
+            <p>أدخل 30 باركود لإنشاء رمز QR لعرض المحتوى</p>
         </div>
 
         <div class="main-content">
@@ -352,7 +341,7 @@
             <div id="qrSection" class="qr-section" style="display: none;">
                 <h3>🎉 تم إنشاء رمز QR للمجلد!</h3>
                 <p style="color: #22543d; margin-bottom: 15px; font-weight: 600;">
-                    📱 امسح رمز QR لتحميل ملف PDF يحتوي على الباركودات
+                    📱 امسح رمز QR لعرض محتوى الباركودات
                 </p>
                 <div class="qr-code-container">
                     <canvas id="qrcode"></canvas>
@@ -360,9 +349,6 @@
                 <div class="action-buttons">
                     <button class="btn btn-success" onclick="printQR()">
                         🖨️ طباعة رمز QR
-                    </button>
-                    <button class="btn btn-info" onclick="exportToPDF()">
-                        📄 تصدير ملف PDF
                     </button>
                     <button class="btn btn-primary" onclick="resetFolder()">
                         🔄 مجلد جديد
@@ -499,7 +485,7 @@
 
         function generateQRCode(folderId) {
             try {
-                const qrUrl = `https://bar-code-orginizer.onrender.com/download/${folderId}`; // Relative path to Node.js server endpoint
+                const qrUrl = `https://bar-code-orginizer.onrender.com/download/${folderId}`; // Replace with your Render URL
                 const qr = qrcode(0, 'M');
                 qr.addData(qrUrl);
                 qr.make();
@@ -531,7 +517,7 @@
                 }
                 
                 document.getElementById('qrSection').style.display = 'block';
-                showAlert('تم إنشاء رمز QR بنجاح! امسح الرمز لتحميل ملف PDF', 'success');
+                showAlert('تم إنشاء رمز QR بنجاح! امسح الرمز لعرض المحتوى', 'success');
                 
             } catch (error) {
                 console.error('QR Generation Error:', error);
@@ -577,51 +563,6 @@
                 printWindow.print();
                 printWindow.close();
             }, 250);
-        }
-
-        function exportToPDF() {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(16);
-            doc.text('تقرير مجلد الباركود', 20, 20);
-            
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(12);
-            const currentDate = new Date();
-            doc.text(`تاريخ الإنشاء: ${currentDate.toLocaleDateString('ar-SA')}`, 20, 35);
-            doc.text(`الوقت: ${currentDate.toLocaleTimeString('ar-SA')}`, 20, 45);
-            doc.text(`إجمالي الباركودات: ${barcodes.length}`, 20, 55);
-            
-            const canvas = document.getElementById('qrcode');
-            const qrImage = canvas.toDataURL('image/png');
-            doc.addImage(qrImage, 'PNG', 20, 65, 50, 50);
-            
-            doc.setFontSize(10);
-            let yPosition = 125;
-            doc.text('قائمة الباركودات:', 20, yPosition);
-            yPosition += 10;
-            
-            barcodes.forEach((barcode, index) => {
-                if (yPosition > 270) {
-                    doc.addPage();
-                    yPosition = 20;
-                }
-                doc.text(`${index + 1}. ${barcode}`, 20, yPosition);
-                yPosition += 8;
-            });
-            
-            const pageCount = doc.internal.getNumberOfPages();
-            for (let i = 1; i <= pageCount; i++) {
-                doc.setPage(i);
-                doc.setFontSize(8);
-                doc.text(`الصفحة ${i} من ${pageCount}`, 170, 285);
-                doc.text('تم إنشاؤه بواسطة مدير الباركود', 20, 285);
-            }
-            
-            doc.save('barcode-folder.pdf');
-            showAlert('تم تصدير PDF بنجاح', 'success');
         }
 
         function resetFolder() {
