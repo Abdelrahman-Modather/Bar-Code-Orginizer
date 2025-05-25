@@ -375,7 +375,7 @@
     <script>
         let barcodes = [];
         const maxBarcodes = 30;
-        const SERVER_URL = '/api/barcodes'; // Relative path to Node.js server endpoint
+        const SERVER_URL = 'https://bar-code-orginizer.onrender.com/api/barcodes'; // Relative path to Node.js server endpoint
 
         // Fetch barcodes from server on page load
         async function fetchBarcodes() {
@@ -499,7 +499,7 @@
 
         function generateQRCode(folderId) {
             try {
-                const qrUrl = `/download/${folderId}`; // Relative path to Node.js server endpoint
+                const qrUrl = `https://bar-code-orginizer.onrender.com/download/${folderId}`; // Relative path to Node.js server endpoint
                 const qr = qrcode(0, 'M');
                 qr.addData(qrUrl);
                 qr.make();
