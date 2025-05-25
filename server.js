@@ -5,7 +5,9 @@ const { v4: uuidv4 } = require('uuid');
 const fs = require('fs').promises;
 const path = require('path');
 const app = express();
-const port = 3000;
+
+// Use PORT from environment variable (required by Render)
+const port = process.env.PORT || 3000;
 
 const DB_FILE = path.join(__dirname, 'barcodes.json');
 // Path to Arabic font (place Amiri-Regular.ttf in a fonts directory)
@@ -18,6 +20,9 @@ app.use(cors({
 
 // Middleware to parse JSON
 app.use(express.json());
+
+// Serve static files (index.html)
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Initialize database file if it doesn't exist
 async function initDatabase() {
@@ -93,7 +98,7 @@ app.get('/download/:folderId', async (req, res) => {
             return res.status(404).send('Barcode data not found');
         }
 
-        const doc = new PDFDocument({ autoFirstPage: false }); // Delay page creation for RTL setup
+        const doc = new PDFDocument({ autoFirstPage: false });
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename=barcode-folder-${folderId}.pdf`);
 
@@ -106,11 +111,14 @@ app.get('/download/:folderId', async (req, res) => {
         });
 
         // Register Arabic font
+        if (!fs.existsSync(ARABIC_FONT_PATH)) {
+            throw new Error('Arabic font file not found');
+        }
         doc.registerFont('Amiri', ARABIC_FONT_PATH);
 
         // Set font and size for header
         doc.font('Amiri').fontSize(16);
-        doc.text('تقرير مجلد الباركود', 190, 20, { align: 'right' }); // Start from right edge
+        doc.text('تقرير مجلد الباركود', 190, 20, { align: 'right' });
 
         // Add metadata
         doc.fontSize(12);
@@ -126,7 +134,6 @@ app.get('/download/:folderId', async (req, res) => {
         doc.fontSize(11);
         doc.text('قائمة الباركودات:', 190, 75, { align: 'right' });
 
-        // Use Amiri for Arabic, Courier for barcodes (assuming they are Latin digits)
         doc.fontSize(10);
         let yPosition = 85;
 
@@ -136,10 +143,8 @@ app.get('/download/:folderId', async (req, res) => {
                 yPosition = 20;
             }
             const paddedIndex = String(index + 1).padStart(2, '0');
-            // Render index and dot with Amiri for Arabic numbers
             doc.font('Amiri');
             doc.text(`${paddedIndex}.`, 190, yPosition, { align: 'right', continued: true });
-            // Switch to Courier for barcode (assuming Latin digits)
             doc.font('Courier');
             doc.text(` ${barcode}`, { align: 'right' });
             yPosition += 10;
@@ -151,13 +156,13 @@ app.get('/download/:folderId', async (req, res) => {
             doc.switchToPage(i);
             doc.font('Amiri').fontSize(8);
             doc.text(`الصفحة ${i + 1} من ${pageCount}`, 190, 285, { align: 'right' });
-            doc.text('تم إنشاؤه بواسطة مدير الباركود', 20, 285, { align: 'left' }); // Left-align for readability
+            doc.text('تم إنشاؤه بواسطة مدير الباركود', 20, 285, { align: 'left' });
         }
 
         doc.end();
     } catch (error) {
         console.error('Error generating PDF:', error);
-        res.status(500).send('Error generating PDF');
+        res.status(500).send(`Error generating PDF: ${error.message}`);
     }
 });
 
@@ -166,4 +171,6 @@ initDatabase().then(() => {
     app.listen(port, () => {
         console.log(`Server running at http://localhost:${port}`);
     });
+}).catch((error) => {
+    console.error('Failed to start server:', error);
 });
